@@ -61,7 +61,7 @@ def test_rolling_error_breach_needs_min_samples(client):
         if i == 1:
             assert client.get("/monitor/error").json()["breach"] is False  # n=2 < min_samples
     out = client.get("/monitor/error").json()
-    assert out["trains"]["12675"] == {"n": 3, "mae": 40.0, "breach": True} and out["breach"]
+    assert out["trains"]["12675"] == {"n": 3, "mae": 40.0, "threshold": 15.0, "breach": True} and out["breach"]
 
 
 def test_complaint_spike_uses_route_threshold(client):
@@ -78,3 +78,16 @@ def test_old_data_falls_out_of_window(client):
         complain(client, 12676, day="2025-10-01")
     assert client.get("/monitor/complaints", params={"ref_date": "2025-10-01"}).json()["breach"]
     assert client.get("/monitor/complaints", params={"ref_date": "2025-11-01"}).json()["trains"] == {}
+
+
+def test_since_excludes_data_before_last_retrain(tmp_path):
+    from src.api import storage
+    from src.monitoring import signals
+
+    conn = storage.connect(str(tmp_path / "s.db"))
+    for d in ("2025-11-09", "2025-11-10", "2025-11-11"):
+        conn.execute("INSERT INTO complaints(train_no, date, text, created_at) VALUES (12676, ?, 'x', 't')", (d,))
+    conn.commit()
+    cfg = TH["complaints"]
+    assert signals.complaint_volume(conn, cfg, "2025-11-11")["trains"][12676]["n"] == 3
+    assert signals.complaint_volume(conn, cfg, "2025-11-11", since="2025-11-10")["trains"][12676]["n"] == 1

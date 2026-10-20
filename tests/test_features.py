@@ -1,7 +1,6 @@
-import pandas as pd
 
-from src.features.build import TARGET, add_features, attach_hist, hist_avg_table
 from src.data.simulate import load_config, simulate_delays
+from src.features.build import TARGET, add_features, attach_hist, hist_avg_table
 
 
 def test_hist_avg_uses_only_given_rows_and_fills_unseen():

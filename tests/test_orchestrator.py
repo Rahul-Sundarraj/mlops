@@ -2,7 +2,6 @@ import json
 
 import mlflow
 import mlflow.sklearn
-import pandas as pd
 import pytest
 from mlflow.tracking import MlflowClient
 
@@ -16,16 +15,16 @@ from src.orchestrator import run as orch
 TINY = {"xgboost": {"n_estimators": 20, "max_depth": 3, "learning_rate": 0.2},
         "lightgbm": {"n_estimators": 20, "num_leaves": 7, "learning_rate": 0.2},
         "experiment": "t", "registered_model": "m"}
-ORCH = {"cooldown_days": 3, "holdout_days": 7, "promote_tolerance_min": 0.0}
+ORCH = {"cooldown_days": 3, "holdout_days": 7, "min_gain_min": 0.05}
 TH = {"drift": {"min_rows": 50, "share_threshold": 0.3, "columns": ["rain_mm", "is_festival", "region"]},
-      "rolling_error": {"window_days": 7, "min_samples": 3, "mae_threshold": 15.0},
+      "rolling_error": {"window_days": 7, "min_samples": 3, "ratio": 1.5, "mae_threshold": 15.0},
       "complaints": {"window_days": 7, "default_threshold": 2, "per_train": {}},
       "orchestrator": ORCH}
 
 
 def test_promote_decision_and_cooldown():
-    assert orch.promote_decision(8.0, 8.0, 0.0) and not orch.promote_decision(8.1, 8.0, 0.0)
-    assert orch.promote_decision(8.1, 8.0, 0.2)
+    assert orch.promote_decision(7.9, 8.0, 0.05) and not orch.promote_decision(8.0, 8.0, 0.05)
+    assert not orch.promote_decision(7.98, 8.0, 0.05)  # gain below min_gain: ties keep the champion
     hist = [{"ref_date": "2025-11-10"}]
     assert not orch.cooldown_ok("2025-11-12", 3, hist) and orch.cooldown_ok("2025-11-13", 3, hist)
     assert orch.cooldown_ok("2025-11-01", 3, [])
@@ -73,7 +72,11 @@ def test_retrain_cycle_registers_candidate_and_logs_history(tmp_path, data):
     assert str(prod) == ("2" if rec["promoted"] else "1")
     assert json.loads(hist_path.read_text().splitlines()[0])["ref_date"] == "2025-03-20"
 
-    again = orch.run_cycle(conn, params, TH, train, train, live, new, "2025-03-21", hist_path)
+    # complaints before the retrain no longer count, so the next day is quiet
+    assert orch.run_cycle(conn, params, TH, train, train, live, new, "2025-03-21", hist_path)["skipped"] == "no trigger"
+    # a fresh spike right after the retrain is held back by the cooldown
+    for _ in range(3):
+        conn.execute("INSERT INTO complaints(train_no, date, text, created_at) VALUES (12675,'2025-03-22','x','t')")
+    conn.commit()
+    again = orch.run_cycle(conn, params, TH, train, train, live, new, "2025-03-22", hist_path)
     assert not again["retrained"] and again["skipped"] == "cooldown"
-    quiet = orch.run_cycle(conn, params, TH, train, train, live, new, "2025-03-30", hist_path)
-    assert quiet["skipped"] == "no trigger" or quiet["retrained"]  # complaints age out of the window

@@ -10,10 +10,12 @@ from evidently.presets import DataDriftPreset
 CATEGORICAL = {"region", "category", "station", "is_festival"}
 
 
-def recent_features(conn, ref_date, window_days):
+def recent_features(conn, ref_date, window_days, since=None):
     """Feature rows logged by /predict for the window ending at ref_date (by prediction date)."""
     ref = date.fromisoformat(ref_date) if isinstance(ref_date, str) else ref_date
     lo = (ref - timedelta(days=window_days - 1)).isoformat()
+    if since:
+        lo = max(lo, (date.fromisoformat(since) + timedelta(days=1)).isoformat())
     rows = conn.execute("SELECT features FROM predictions WHERE date BETWEEN ? AND ? AND features IS NOT NULL",
                         (lo, ref.isoformat())).fetchall()
     return pd.DataFrame([json.loads(r["features"]) for r in rows])
@@ -27,8 +29,9 @@ def detect_drift(reference, live, cfg, html_path=None):
                 "note": "not enough live rows"}
     dd = DataDefinition(numerical_columns=[c for c in cols if c not in CATEGORICAL],
                         categorical_columns=[c for c in cols if c in CATEGORICAL])
-    snap = Report([DataDriftPreset()]).run(Dataset.from_pandas(live[cols], data_definition=dd),
-                                           Dataset.from_pandas(reference[cols], data_definition=dd))
+    preset = DataDriftPreset(num_threshold=cfg.get("num_threshold"), cat_threshold=cfg.get("cat_threshold"))
+    snap = Report([preset]).run(Dataset.from_pandas(live[cols], data_definition=dd),
+                                Dataset.from_pandas(reference[cols], data_definition=dd))
     metrics = snap.dict()["metrics"]
     share = float(metrics[0]["value"]["share"])
     drifted = [m["config"]["column"] for m in metrics[1:]

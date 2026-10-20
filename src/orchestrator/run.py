@@ -15,6 +15,7 @@ import yaml
 from mlflow.tracking import MlflowClient
 from sklearn.metrics import mean_absolute_error
 
+from src.common import with_env_overrides
 from src.features.build import CAT, NUM, TARGET
 from src.models.train import fit_candidates
 from src.monitoring import drift, signals
@@ -28,13 +29,21 @@ def read_history(path=HISTORY):
     return [json.loads(line) for line in open(path) if line.strip()]
 
 
-def evaluate_signals(conn, thresholds, reference, live_features, ref_date=None):
+def evaluate_signals(conn, thresholds, reference, live_features, ref_date=None, since=None):
     """Collect the three signals and the list of those that fired."""
-    d = drift.detect_drift(reference, live_features, thresholds["drift"])
-    e = signals.rolling_error(conn, thresholds["rolling_error"], ref_date)
-    c = signals.complaint_volume(conn, thresholds["complaints"], ref_date)
+    ref = reference
+    if thresholds["drift"].get("match_season") and "month" in reference and "month" in live_features:
+        same = reference[reference["month"].isin(live_features["month"].unique())]
+        ref = same if len(same) >= thresholds["drift"]["min_rows"] else reference
+    d = drift.detect_drift(ref, live_features, thresholds["drift"])
+    e = signals.rolling_error(conn, thresholds["rolling_error"], ref_date, since)
+    c = signals.complaint_volume(conn, thresholds["complaints"], ref_date, since)
     fired = [n for n, s in (("drift", d), ("rolling_error", e), ("complaints", c)) if s["breach"]]
     return {"drift": d, "rolling_error": e, "complaints": c, "triggers": fired}
+
+
+def last_retrain_date(history):
+    return history[-1]["ref_date"] if history else None
 
 
 def cooldown_ok(ref_date, cooldown_days, history):
@@ -45,8 +54,8 @@ def cooldown_ok(ref_date, cooldown_days, history):
     return (date.fromisoformat(ref_date) - last).days >= cooldown_days
 
 
-def promote_decision(candidate_mae, champion_mae, tolerance):
-    return candidate_mae <= champion_mae + tolerance
+def promote_decision(candidate_mae, champion_mae, min_gain):
+    return candidate_mae < champion_mae - min_gain
 
 
 def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, history_path=HISTORY):
@@ -72,7 +81,7 @@ def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, h
     mv = mlflow.register_model(info.model_uri, name)
     client.set_registered_model_alias(name, "staging", mv.version)
 
-    promoted = promote_decision(cand_mae, champ_mae, orch_cfg["promote_tolerance_min"])
+    promoted = promote_decision(cand_mae, champ_mae, orch_cfg["min_gain_min"])
     if promoted:
         client.set_registered_model_alias(name, "production", mv.version)
     client.set_model_version_tag(name, mv.version, "promoted", str(promoted).lower())
@@ -86,11 +95,22 @@ def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, h
     return record
 
 
+def log_signals(sig, out, ref_date, path):
+    rec = {"ref_date": ref_date, "drift_share": sig["drift"]["share"],
+           "max_error_mae": max((t["mae"] for t in sig["rolling_error"]["trains"].values()), default=None),
+           "max_complaints": max((t["n"] for t in sig["complaints"]["trains"].values()), default=0),
+           "triggers": sig["triggers"], "retrained": out["retrained"],
+           "promoted": out["record"]["promoted"] if out["record"] else None}
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(rec) + "\n")
+
+
 def run_cycle(conn, params, thresholds, train_df, reference, live_features, new_df, ref_date,
-              history_path=HISTORY):
+              history_path=HISTORY, signals_log=None):
     """One orchestrator tick: evaluate signals, respect cooldown, retrain if triggered."""
-    sig = evaluate_signals(conn, thresholds, reference, live_features, ref_date)
     history = read_history(history_path)
+    sig = evaluate_signals(conn, thresholds, reference, live_features, ref_date, last_retrain_date(history))
     out = {"signals": sig, "retrained": False, "record": None}
     if not sig["triggers"]:
         out["skipped"] = "no trigger"
@@ -100,8 +120,10 @@ def run_cycle(conn, params, thresholds, train_df, reference, live_features, new_
         out["record"] = retrain_and_promote(train_df, new_df, params, thresholds["orchestrator"],
                                             sig["triggers"], ref_date, history_path)
         out["retrained"] = True
+    if signals_log:
+        log_signals(sig, out, ref_date, signals_log)
     return out
 
 
 def load_params():
-    return yaml.safe_load(open("params.yaml"))["train"]
+    return with_env_overrides(yaml.safe_load(open("params.yaml"))["train"])

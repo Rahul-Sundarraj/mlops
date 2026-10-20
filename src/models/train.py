@@ -17,6 +17,7 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder
 
+from src.common import with_env_overrides
 from src.features.build import CAT, FEATURES, NUM, TARGET
 
 
@@ -42,7 +43,7 @@ def fit_candidates(fit_df, eval_df, params):
 
 
 def main():
-    p = yaml.safe_load(open("params.yaml"))["train"]
+    p = with_env_overrides(yaml.safe_load(open("params.yaml"))["train"])
     train = pd.read_csv("data/processed/train.csv")
     test = pd.read_csv("data/processed/test.csv")
     Xtr, ytr, Xte, yte = train[FEATURES], train[TARGET], test[FEATURES], test[TARGET]

@@ -1,5 +1,5 @@
 """Build a single-row feature frame for /predict from the route config."""
-from datetime import date as Date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pandas as pd
 

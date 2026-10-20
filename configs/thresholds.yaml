@@ -1,18 +1,22 @@
 # Retrain-signal thresholds (consumed by monitors now, orchestrator in Phase 4).
 rolling_error:
   window_days: 7
-  min_samples: 20        # ignore routes with too few ping-matched predictions
-  mae_threshold: 15.0    # minutes; ~1.7x the offline test MAE (8.7)
+  min_samples: 60        # ignore routes with too few ping-matched predictions
+  ratio: 1.6             # breach when rolling MAE > ratio x the train's healthy MAE (cfg.baseline)
+  mae_threshold: 15.0    # absolute fallback (minutes) for trains without a baseline
 complaints:
   window_days: 7
   default_threshold: 10  # complaints per train per window
   per_train: {}          # route-specific overrides, e.g. {12675: 6}
 drift:
   window_days: 14
-  min_rows: 100
+  min_rows: 1500
+  match_season: true     # compare against training rows from the same calendar months (seasonality is expected)
   share_threshold: 0.3   # fraction of monitored features Evidently flags as drifted
-  columns: [rain_mm, is_festival, day_of_week, sched_hour, distance_km, stop_seq, region, category]
+  columns: [rain_mm, is_festival]   # world-driven inputs only; route mix is a sampling artefact
+  num_threshold: 1.0     # normed Wasserstein distance above which a numeric column counts as drifted
+  cat_threshold: 0.5     # Jensen-Shannon distance for categorical columns
 orchestrator:
   cooldown_days: 3         # min gap between retrains, in data (logical) days
   holdout_days: 7          # newest labelled days held out to compare candidate vs. champion
-  promote_tolerance_min: 0.0   # candidate MAE must be <= champion MAE + tolerance
+  min_gain_min: 0.05       # candidate must beat champion MAE by at least this much (ties keep champion)

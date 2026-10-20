@@ -3,7 +3,8 @@
 Run: uvicorn src.api.app:get_app --factory --port 8000  (needs a registered model; see src/models/train.py)
 """
 import os
-from datetime import date as Date, datetime, timezone
+from datetime import date as Date
+from datetime import datetime, timezone
 
 import mlflow
 import mlflow.sklearn
@@ -13,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from src.api import storage
 from src.api.features import UnknownRoute, build_row, load_hist
+from src.common import with_env_overrides
 from src.data.simulate import load_config
 from src.monitoring import signals
 
@@ -59,7 +61,7 @@ def create_app(predictor=None, model_version="test", db_path=None, hist=None, th
 
     def model():
         if state["predictor"] is None:
-            params = yaml.safe_load(open("params.yaml"))["train"]
+            params = with_env_overrides(yaml.safe_load(open("params.yaml"))["train"])
             state["predictor"], state["version"] = _load_registered(params)
         return state["predictor"]
 
@@ -67,6 +69,13 @@ def create_app(predictor=None, model_version="test", db_path=None, hist=None, th
     def health():
         return {"status": "ok", "model_loaded": state["predictor"] is not None,
                 "model_version": state["version"]}
+
+    @app.post("/reload-model")
+    def reload_model():
+        """Re-read the `production` alias from the registry (call after a promotion)."""
+        state["predictor"] = None
+        model()
+        return {"model_version": state["version"]}
 
     @app.post("/predict")
     def predict(body: PredictIn):

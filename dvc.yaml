@@ -1,0 +1,34 @@
+stages:
+  simulate:
+    cmd: python -m src.data.simulate --start ${simulate.start} --end ${simulate.end} --seed ${simulate.seed}
+    deps:
+      - src/data/simulate.py
+      - configs/routes.yaml
+    params:
+      - simulate
+    outs:
+      - data/simulated
+  features:
+    cmd: python -m src.features.build
+    deps:
+      - src/features/build.py
+      - data/simulated/delays.csv
+    params:
+      - split
+    outs:
+      - data/processed
+  train:
+    cmd: python -m src.models.train
+    deps:
+      - src/models/train.py
+      - src/features/build.py
+      - data/processed
+    params:
+      - train
+    outs:
+      - mlflow.db:
+          cache: false
+          persist: true
+    metrics:
+      - metrics/metrics.json:
+          cache: false

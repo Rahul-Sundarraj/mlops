@@ -1,0 +1,90 @@
+schema: '2.0'
+stages:
+  simulate:
+    cmd: python -m src.data.simulate --start 2024-01-01 --end 2025-12-31 --seed 
+      42
+    deps:
+    - path: configs/routes.yaml
+      hash: md5
+      md5: f50a2efa99c1c862049050a7d939bea5
+      size: 5045
+    - path: src/data/simulate.py
+      hash: md5
+      md5: cf012159ca8a3ca9cd64c84efcb5fe2b
+      size: 5755
+    params:
+      params.yaml:
+        simulate:
+          start: '2024-01-01'
+          end: '2025-12-31'
+          seed: 42
+    outs:
+    - path: data/simulated
+      hash: md5
+      md5: af0a2aa1e9ba2daadafebfee6c8041a7.dir
+      size: 16434786
+      nfiles: 2
+  features:
+    cmd: python -m src.features.build
+    deps:
+    - path: data/simulated/delays.csv
+      hash: md5
+      md5: 065fa6002d5cf52c40bc0c7d198a73b8
+      size: 16144956
+    - path: src/features/build.py
+      hash: md5
+      md5: 41abff7893c5143a831b496155726937
+      size: 1688
+    params:
+      params.yaml:
+        split:
+          test_start: '2025-10-01'
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 27f04060e486b56b0c6383eaf2bbca5b.dir
+      size: 19852181
+      nfiles: 3
+  train:
+    cmd: python -m src.models.train
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 27f04060e486b56b0c6383eaf2bbca5b.dir
+      size: 19852181
+      nfiles: 3
+    - path: src/features/build.py
+      hash: md5
+      md5: 41abff7893c5143a831b496155726937
+      size: 1688
+    - path: src/models/train.py
+      hash: md5
+      md5: 9c5ebc1a7b1c8c861089c74600ab8ebb
+      size: 3122
+    params:
+      params.yaml:
+        train:
+          mlflow_uri: sqlite:///mlflow.db
+          experiment: railway-delay
+          registered_model: delay-predictor
+          xgboost:
+            n_estimators: 400
+            max_depth: 6
+            learning_rate: 0.05
+            subsample: 0.8
+            colsample_bytree: 0.8
+          lightgbm:
+            n_estimators: 400
+            num_leaves: 31
+            learning_rate: 0.05
+            subsample: 0.8
+            colsample_bytree: 0.8
+    outs:
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 1e2673afc8a5743608e419003fc7f921
+      size: 137
+    - path: mlflow.db
+      hash: md5
+      md5: f329402ea2c4ad3e443b42aea63cfddf
+      size: 876544

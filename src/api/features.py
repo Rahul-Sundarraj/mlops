@@ -13,6 +13,14 @@ class UnknownRoute(ValueError):
     pass
 
 
+def scheduled_arrival(cfg, train_no, station, day):
+    """Scheduled arrival datetime from origin departure + distance / average speed."""
+    t = cfg["trains"][train_no]
+    km = dict(t["stops"])[station]
+    hh, mm = map(int, t["dep"].split(":"))
+    return datetime.combine(day, datetime.min.time()) + timedelta(hours=hh, minutes=mm + km / t["speed"] * 60)
+
+
 def build_row(cfg, hist, train_no, station, day, rain_mm=None):
     t = cfg["trains"].get(train_no)
     if t is None:
@@ -22,8 +30,7 @@ def build_row(cfg, hist, train_no, station, day, rain_mm=None):
         raise UnknownRoute(f"train {train_no} does not stop at {station}")
     seq, km = stops[station]
     region = next(r for r, sts in cfg["regions"].items() if station in sts)
-    hh, mm = map(int, t["dep"].split(":"))
-    sched = datetime.combine(day, datetime.min.time()) + timedelta(hours=hh, minutes=mm + km / t["speed"] * 60)
+    sched = scheduled_arrival(cfg, train_no, station, day)
     if rain_mm is None:
         rain_mm = RAIN_MEAN[region][day.month - 1]
     h = hist.get((train_no, station))

@@ -84,7 +84,7 @@ def main():
         st.write("No retrains yet.")
     else:
         hist = hist.assign(reasons=hist["reasons"].map(", ".join))
-        st.dataframe(hist.drop(columns=["run_id"]), use_container_width=True)
+        st.dataframe(hist.drop(columns=["run_id"]), width="stretch")
 
 
 main()

@@ -1,0 +1,46 @@
+# One image, several roles. Shared named volumes keep data, the MLflow registry and artifacts consistent.
+#   docker compose up --build            -> pipeline (simulate+features+train), then api :8000, mlflow :5000
+#   docker compose --profile demo up demo dashboard   -> replay the incident demo, dashboard on :8501
+x-app: &app
+  build: .
+  volumes:
+    - data:/app/data
+    - db:/app/db
+    - mlruns:/app/mlruns
+
+services:
+  pipeline:
+    <<: *app
+    command: sh -c "mkdir -p /app/db && python -m src.data.simulate && python -m src.features.build && python -m src.models.train"
+    restart: "no"
+
+  mlflow:
+    <<: *app
+    command: mlflow server --backend-store-uri sqlite:////app/db/mlflow.db --host 0.0.0.0 --port 5000
+    ports: ["5000:5000"]
+    depends_on:
+      pipeline: {condition: service_completed_successfully}
+
+  api:
+    <<: *app
+    ports: ["8000:8000"]
+    depends_on:
+      pipeline: {condition: service_completed_successfully}
+
+  demo:
+    <<: *app
+    profiles: [demo]
+    command: python -m src.demo.run_demo --scenario all
+    depends_on:
+      pipeline: {condition: service_completed_successfully}
+
+  dashboard:
+    <<: *app
+    profiles: [demo]
+    command: streamlit run src/dashboard/app.py --server.address 0.0.0.0 --server.port 8501
+    ports: ["8501:8501"]
+
+volumes:
+  data:
+  db:
+  mlruns:

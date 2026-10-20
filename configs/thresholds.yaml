@@ -1,0 +1,9 @@
+# Retrain-signal thresholds (consumed by monitors now, orchestrator in Phase 4).
+rolling_error:
+  window_days: 7
+  min_samples: 20        # ignore routes with too few ping-matched predictions
+  mae_threshold: 15.0    # minutes; ~1.7x the offline test MAE (8.7)
+complaints:
+  window_days: 7
+  default_threshold: 10  # complaints per train per window
+  per_train: {}          # route-specific overrides, e.g. {12675: 6}

@@ -1,62 +1,49 @@
-# Routes for the 16 trains in scope.
-# NOTE: stop lists and cumulative distances (km from origin) are APPROXIMATE,
-# written from general knowledge and NOT yet verified against NTES / datameet.
-# Verify before the final report (see docs). Each train number is one direction.
-# category: vande_bharat | superfast | express  (drives base delay + recovery)
+# Routes for the 16 trains in scope, one explicit stop list per train: [station_code, km from origin].
+# Source: third-party timetable sites (confirmtkt, railmitra, ixigo) cross-checked on 2026-10-20.
+# NOT NTES/official - re-check against NTES before the final report.
+# Long trains list major stops only (minor halts omitted); 12679 stops are mirrored from 12680 (not separately confirmed).
+# dep = origin departure (HH:MM); speed = average km/h incl. halts, derived from published origin-departure/final-arrival times.
+# category: vande_bharat | superfast | express (drives base delay + recovery).
 
-corridors:
-  chennai_coimbatore:   # MAS - CBE trunk via Katpadi, Salem, Erode
-    stops: [[MAS, 0], [KPD, 132], [JTJ, 213], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495]]
-  chennai_mettupalayam:
-    stops: [[MAS, 0], [KPD, 132], [JTJ, 213], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [MTP, 531]]
-  chennai_mangalore:
-    stops: [[MAS, 0], [KPD, 132], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [PGT, 553], [SRR, 604], [CLT, 695], [CAN, 790], [MAQ, 928]]
-  chennai_alappuzha:
-    stops: [[MAS, 0], [KPD, 132], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [PGT, 553], [TCR, 640], [ERS, 745], [ALLP, 800]]
-  chennai_puducherry:
-    stops: [[MS, 0], [CGL, 56], [VM, 160], [PDY, 198]]
-
-# region tag per station: tn_north = Chennai/Katpadi belt, tn_west = Kongu belt, kerala, karnataka_coast
-regions:
-  MAS: tn_north
-  MS: tn_north
-  KPD: tn_north
-  JTJ: tn_north
-  CGL: tn_north
-  VM: tn_north
-  PDY: tn_north
-  SA: tn_west
-  ED: tn_west
-  TUP: tn_west
-  CBE: tn_west
-  MTP: tn_west
-  PGT: kerala
-  SRR: kerala
-  TCR: kerala
-  ERS: kerala
-  ALLP: kerala
-  CLT: kerala
-  CAN: kerala
-  MAQ: karnataka_coast
+regions:   # rain/weather region per station
+  tn_north: [MAS, MS, PER, AJJ, TRL, WJR, KPD, AB, JTJ, CGL, TBM, VM, VRI]
+  tn_west: [SLY, MAP, BQI, SA, ED, TUP, CBF, CBE, MTP, TPJ, KRR]
+  kerala: [PGT, SRR, TIR, CLT, TLY, CAN, PAY, KGQ, ALLP, ERS, AWY, CKI, TCR, OTP]
+  karnataka_coast: [MAQ]
 
 trains:
-  # number: [name, corridor, direction, category, departure_hhmm_at_origin, avg_speed_kmph]
-  20643: {name: Chennai-Coimbatore Vande Bharat,  corridor: chennai_coimbatore,   reverse: false, category: vande_bharat, dep: "06:00", speed: 80}
-  20644: {name: Coimbatore-Chennai Vande Bharat,  corridor: chennai_coimbatore,   reverse: true,  category: vande_bharat, dep: "14:05", speed: 80}
-  12671: {name: Nilgiri Express (MAS-MTP),        corridor: chennai_mettupalayam, reverse: false, category: superfast,    dep: "21:00", speed: 62}
-  12672: {name: Nilgiri Express (MTP-MAS),        corridor: chennai_mettupalayam, reverse: true,  category: superfast,    dep: "20:15", speed: 62}
-  12673: {name: Cheran Express (MAS-CBE),         corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "22:00", speed: 65}
-  12674: {name: Cheran Express (CBE-MAS),         corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "22:15", speed: 65}
-  12675: {name: Kovai Express (MAS-CBE),          corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "06:10", speed: 65}
-  12676: {name: Kovai Express (CBE-MAS),          corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "14:45", speed: 65}
-  12679: {name: Coimbatore-Chennai Intercity,     corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "06:00", speed: 62}
-  12680: {name: Chennai-Coimbatore Intercity,     corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "15:00", speed: 62}
-  12685: {name: Chennai-Mangalore Superfast,      corridor: chennai_mangalore,    reverse: false, category: superfast,    dep: "15:10", speed: 60}
-  22637: {name: West Coast Express (MAS-MAQ),     corridor: chennai_mangalore,    reverse: false, category: superfast,    dep: "13:10", speed: 58}
-  22638: {name: West Coast Express (MAQ-MAS),     corridor: chennai_mangalore,    reverse: true,  category: superfast,    dep: "13:15", speed: 58}
-  22640: {name: Alleppey Express (ALLP-MAS),      corridor: chennai_alappuzha,    reverse: true,  category: superfast,    dep: "16:05", speed: 58}
-  16159: {name: Chennai Egmore-Puducherry,        corridor: chennai_puducherry,   reverse: false, category: express,      dep: "06:00", speed: 45}   # UNVERIFIED service
-  16160: {name: Puducherry-Chennai Egmore,        corridor: chennai_puducherry,   reverse: true,  category: express,      dep: "14:30", speed: 45}   # UNVERIFIED service
+  20643: {name: Chennai-Coimbatore Vande Bharat, category: vande_bharat, dep: "14:15", speed: 83,
+          stops: [[MAS,0],[SA,334],[ED,396],[TUP,446],[CBE,497]]}
+  20644: {name: Coimbatore-Chennai Vande Bharat, category: vande_bharat, dep: "06:00", speed: 85,
+          stops: [[CBE,0],[TUP,51],[ED,101],[SA,164],[MAS,497]]}
+  12671: {name: Nilgiri Express (MAS-MTP), category: superfast, dep: "21:05", speed: 57,
+          stops: [[MAS,0],[AJJ,69],[KPD,130],[SA,334],[ED,396],[TUP,446],[CBF,494],[CBE,497],[MTP,532]]}
+  12672: {name: Nilgiri Express (MTP-MAS), category: superfast, dep: "21:20", speed: 58,
+          stops: [[MTP,0],[CBE,36],[TUP,86],[ED,137],[SA,199],[KPD,403],[AJJ,464],[PER,527],[MAS,532]]}
+  12673: {name: Cheran Express (MAS-CBE), category: superfast, dep: "22:00", speed: 62,
+          stops: [[MAS,0],[AJJ,69],[KPD,130],[JTJ,214],[SA,334],[ED,396],[TUP,446],[CBF,494],[CBE,497]]}
+  12674: {name: Cheran Express (CBE-MAS), category: superfast, dep: "22:50", speed: 61,
+          stops: [[CBE,0],[TUP,51],[ED,101],[SA,164],[JTJ,284],[KPD,367],[AJJ,428],[PER,491],[MAS,497]]}
+  12675: {name: Kovai Express (MAS-CBE), category: superfast, dep: "06:10", speed: 63,
+          stops: [[MAS,0],[TRL,42],[AJJ,69],[WJR,105],[KPD,130],[AB,182],[JTJ,214],[MAP,268],[SA,334],[ED,396],[TUP,446],[CBE,497]]}
+  12676: {name: Kovai Express (CBE-MAS), category: superfast, dep: "15:15", speed: 66,
+          stops: [[CBE,0],[TUP,51],[ED,101],[SA,164],[MAP,229],[JTJ,284],[AB,315],[KPD,367],[WJR,392],[AJJ,428],[TRL,455],[PER,491],[MAS,497]]}
+  12679: {name: Chennai-Coimbatore Intercity (MAS-CBE), category: superfast, dep: "14:35", speed: 64,
+          stops: [[MAS,0],[PER,6],[AJJ,69],[KPD,130],[AB,182],[JTJ,213],[SLY,244],[MAP,268],[BQI,290],[SA,333],[ED,396],[TUP,446],[CBE,497]]}
+  12680: {name: Coimbatore-Chennai Intercity (CBE-MAS), category: superfast, dep: "06:20", speed: 67,
+          stops: [[CBE,0],[TUP,51],[ED,101],[SA,164],[BQI,207],[MAP,229],[SLY,253],[JTJ,284],[AB,315],[KPD,367],[AJJ,428],[PER,491],[MAS,497]]}
+  12685: {name: Chennai-Mangalore Superfast, category: superfast, dep: "16:20", speed: 59,
+          stops: [[MAS,0],[KPD,130],[JTJ,214],[MAP,268],[SA,334],[ED,396],[TUP,446],[PGT,538],[SRR,583],[TIR,628],[CLT,668],[TLY,737],[CAN,758],[PAY,791],[KGQ,843],[MAQ,889]]}
+  22637: {name: West Coast Express (MAS-MAQ), category: superfast, dep: "13:25", speed: 55,
+          stops: [[MAS,0],[AJJ,69],[KPD,130],[JTJ,214],[MAP,268],[SA,334],[ED,396],[TUP,446],[CBE,497],[PGT,551],[SRR,595],[TIR,640],[CLT,681],[TLY,750],[CAN,771],[PAY,804],[KGQ,856],[MAQ,902]]}
+  22638: {name: West Coast Express (MAQ-MAS), category: superfast, dep: "23:45", speed: 55.5,
+          stops: [[MAQ,0],[KGQ,46],[PAY,98],[CAN,132],[TLY,153],[CLT,221],[TIR,262],[SRR,307],[PGT,351],[CBE,406],[TUP,456],[ED,506],[SA,569],[MAP,635],[JTJ,689],[KPD,773],[AJJ,833],[MAS,902]]}
+  22640: {name: Alleppey Express (ALLP-MAS), category: superfast, dep: "15:20", speed: 54.5,
+          stops: [[ALLP,0],[ERS,57],[AWY,77],[CKI,101],[TCR,131],[OTP,177],[PGT,208],[CBE,263],[TUP,313],[ED,363],[SA,426],[JTJ,546],[KPD,630],[AJJ,690],[MAS,759]]}
+  16159: {name: MS-MAQ Express (Chennai Egmore-Mangaluru), category: express, dep: "23:10", speed: 49,
+          stops: [[MS,0],[TBM,25],[CGL,56],[VM,159],[VRI,213],[TPJ,336],[KRR,412],[ED,478],[TUP,528],[CBE,578],[PGT,633],[SRR,677],[TIR,722],[CLT,763],[TLY,831],[CAN,852],[PAY,885],[KGQ,938],[MAQ,983]]}
+  16160: {name: MAQ-MS Express (Mangaluru-Chennai Egmore), category: express, dep: "06:45", speed: 47.2,
+          stops: [[MAQ,0],[KGQ,46],[PAY,98],[CAN,132],[TLY,153],[CLT,221],[TIR,262],[SRR,307],[PGT,351],[CBE,406],[TUP,456],[ED,506],[KRR,572],[TPJ,647],[VRI,770],[VM,825],[CGL,928],[TBM,959],[MS,983]]}
 
 # Calibration: mean arrival delay (minutes) at final stop in a "normal" month.
 # Loosely anchored to publicly reported punctuality; tune against Rajya Sabha figures.

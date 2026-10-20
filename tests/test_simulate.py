@@ -46,3 +46,12 @@ def test_grievances_follow_delay():
     late = g[g.final_delay_min > 60].grievance_count.mean()
     ontime = g[g.final_delay_min < 15].grievance_count.mean()
     assert late > ontime
+
+
+def test_route_config_is_consistent():
+    cfg = load_config()
+    region_of = {s for sts in cfg["regions"].values() for s in sts}
+    for no, t in cfg["trains"].items():
+        kms = [km for _, km in t["stops"]]
+        assert kms[0] == 0 and kms == sorted(set(kms)), no
+        assert {c for c, _ in t["stops"]} <= region_of, no

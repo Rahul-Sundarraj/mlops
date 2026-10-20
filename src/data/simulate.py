@@ -47,17 +47,13 @@ def festival_dates():
 
 
 def train_stops(cfg, train):
-    stops = cfg["corridors"][train["corridor"]]["stops"]
-    if train["reverse"]:
-        total = stops[-1][1]
-        stops = [[code, total - km] for code, km in reversed(stops)]
-    return stops
+    return train["stops"]
 
 
 def simulate_delays(cfg, start, end, seed):
     rng = np.random.default_rng(seed)
     fest = festival_dates()
-    regions = cfg["regions"]
+    regions = {st: r for r, sts in cfg["regions"].items() for st in sts}
     days = pd.date_range(start, end, freq="D")
 
     # Rain is a weather proxy shared by all trains on a given day and region.
@@ -93,7 +89,7 @@ def simulate_delays(cfg, start, end, seed):
                 if i - 1 == incident_seg:
                     shock += rng.uniform(30, 120)
                 delay = max(0.0, delay * (1 - rec) + shock)
-                sched = dep + timedelta(minutes=km / t["speed"] * 60 + 2 * i)
+                sched = dep + timedelta(minutes=km / t["speed"] * 60)
                 rows.append(_row(no, t, stops[i], i, sched, day, rain, regions, is_fest, delay))
     return pd.DataFrame(rows)
 

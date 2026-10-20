@@ -10,5 +10,6 @@ pydantic==2.12.3
 pytest==9.1.1
 PyYAML==6.0.3
 scikit-learn==1.7.1
+streamlit==1.62.0
 uvicorn==0.38.0
 xgboost==3.4.1

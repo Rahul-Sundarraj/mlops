@@ -1,0 +1,66 @@
+# Routes for the 16 trains in scope.
+# NOTE: stop lists and cumulative distances (km from origin) are APPROXIMATE,
+# written from general knowledge and NOT yet verified against NTES / datameet.
+# Verify before the final report (see docs). Each train number is one direction.
+# category: vande_bharat | superfast | express  (drives base delay + recovery)
+
+corridors:
+  chennai_coimbatore:   # MAS - CBE trunk via Katpadi, Salem, Erode
+    stops: [[MAS, 0], [KPD, 132], [JTJ, 213], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495]]
+  chennai_mettupalayam:
+    stops: [[MAS, 0], [KPD, 132], [JTJ, 213], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [MTP, 531]]
+  chennai_mangalore:
+    stops: [[MAS, 0], [KPD, 132], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [PGT, 553], [SRR, 604], [CLT, 695], [CAN, 790], [MAQ, 928]]
+  chennai_alappuzha:
+    stops: [[MAS, 0], [KPD, 132], [SA, 335], [ED, 394], [TUP, 440], [CBE, 495], [PGT, 553], [TCR, 640], [ERS, 745], [ALLP, 800]]
+  chennai_puducherry:
+    stops: [[MS, 0], [CGL, 56], [VM, 160], [PDY, 198]]
+
+# region tag per station: tn_north = Chennai/Katpadi belt, tn_west = Kongu belt, kerala, karnataka_coast
+regions:
+  MAS: tn_north
+  MS: tn_north
+  KPD: tn_north
+  JTJ: tn_north
+  CGL: tn_north
+  VM: tn_north
+  PDY: tn_north
+  SA: tn_west
+  ED: tn_west
+  TUP: tn_west
+  CBE: tn_west
+  MTP: tn_west
+  PGT: kerala
+  SRR: kerala
+  TCR: kerala
+  ERS: kerala
+  ALLP: kerala
+  CLT: kerala
+  CAN: kerala
+  MAQ: karnataka_coast
+
+trains:
+  # number: [name, corridor, direction, category, departure_hhmm_at_origin, avg_speed_kmph]
+  20643: {name: Chennai-Coimbatore Vande Bharat,  corridor: chennai_coimbatore,   reverse: false, category: vande_bharat, dep: "06:00", speed: 80}
+  20644: {name: Coimbatore-Chennai Vande Bharat,  corridor: chennai_coimbatore,   reverse: true,  category: vande_bharat, dep: "14:05", speed: 80}
+  12671: {name: Nilgiri Express (MAS-MTP),        corridor: chennai_mettupalayam, reverse: false, category: superfast,    dep: "21:00", speed: 62}
+  12672: {name: Nilgiri Express (MTP-MAS),        corridor: chennai_mettupalayam, reverse: true,  category: superfast,    dep: "20:15", speed: 62}
+  12673: {name: Cheran Express (MAS-CBE),         corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "22:00", speed: 65}
+  12674: {name: Cheran Express (CBE-MAS),         corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "22:15", speed: 65}
+  12675: {name: Kovai Express (MAS-CBE),          corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "06:10", speed: 65}
+  12676: {name: Kovai Express (CBE-MAS),          corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "14:45", speed: 65}
+  12679: {name: Coimbatore-Chennai Intercity,     corridor: chennai_coimbatore,   reverse: true,  category: superfast,    dep: "06:00", speed: 62}
+  12680: {name: Chennai-Coimbatore Intercity,     corridor: chennai_coimbatore,   reverse: false, category: superfast,    dep: "15:00", speed: 62}
+  12685: {name: Chennai-Mangalore Superfast,      corridor: chennai_mangalore,    reverse: false, category: superfast,    dep: "15:10", speed: 60}
+  22637: {name: West Coast Express (MAS-MAQ),     corridor: chennai_mangalore,    reverse: false, category: superfast,    dep: "13:10", speed: 58}
+  22638: {name: West Coast Express (MAQ-MAS),     corridor: chennai_mangalore,    reverse: true,  category: superfast,    dep: "13:15", speed: 58}
+  22640: {name: Alleppey Express (ALLP-MAS),      corridor: chennai_alappuzha,    reverse: true,  category: superfast,    dep: "16:05", speed: 58}
+  16159: {name: Chennai Egmore-Puducherry,        corridor: chennai_puducherry,   reverse: false, category: express,      dep: "06:00", speed: 45}   # UNVERIFIED service
+  16160: {name: Puducherry-Chennai Egmore,        corridor: chennai_puducherry,   reverse: true,  category: express,      dep: "14:30", speed: 45}   # UNVERIFIED service
+
+# Calibration: mean arrival delay (minutes) at final stop in a "normal" month.
+# Loosely anchored to publicly reported punctuality; tune against Rajya Sabha figures.
+calibration:
+  vande_bharat: {mean_final_delay: 6,  noise_sd: 4,  recovery: 0.35}
+  superfast:    {mean_final_delay: 22, noise_sd: 12, recovery: 0.20}
+  express:      {mean_final_delay: 30, noise_sd: 16, recovery: 0.15}

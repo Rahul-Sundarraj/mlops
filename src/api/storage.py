@@ -3,7 +3,7 @@ import sqlite3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS predictions (
-    id INTEGER PRIMARY KEY, train_no INTEGER, station TEXT, date TEXT, predicted_delay REAL, created_at TEXT);
+    id INTEGER PRIMARY KEY, train_no INTEGER, station TEXT, date TEXT, predicted_delay REAL, features TEXT, created_at TEXT);
 CREATE TABLE IF NOT EXISTS pings (
     id INTEGER PRIMARY KEY, train_no INTEGER, station TEXT, date TEXT, actual_delay REAL, created_at TEXT);
 CREATE TABLE IF NOT EXISTS complaints (

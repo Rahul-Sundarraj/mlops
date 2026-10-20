@@ -7,3 +7,12 @@ complaints:
   window_days: 7
   default_threshold: 10  # complaints per train per window
   per_train: {}          # route-specific overrides, e.g. {12675: 6}
+drift:
+  window_days: 14
+  min_rows: 100
+  share_threshold: 0.3   # fraction of monitored features Evidently flags as drifted
+  columns: [rain_mm, is_festival, day_of_week, sched_hour, distance_km, stop_seq, region, category]
+orchestrator:
+  cooldown_days: 3         # min gap between retrains, in data (logical) days
+  holdout_days: 7          # newest labelled days held out to compare candidate vs. champion
+  promote_tolerance_min: 0.0   # candidate MAE must be <= champion MAE + tolerance

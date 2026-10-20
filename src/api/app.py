@@ -75,9 +75,10 @@ def create_app(predictor=None, model_version="test", db_path=None, hist=None, th
         except UnknownRoute as e:
             raise HTTPException(422, str(e))
         pred = max(0.0, float(model().predict(X)[0]))
-        conn.execute("INSERT INTO predictions(train_no, station, date, predicted_delay, created_at) "
-                     "VALUES (?,?,?,?,?)",
-                     (body.train_no, body.station, body.date.isoformat(), pred, _now()))
+        conn.execute("INSERT INTO predictions(train_no, station, date, predicted_delay, features, created_at) "
+                     "VALUES (?,?,?,?,?,?)",
+                     (body.train_no, body.station, body.date.isoformat(), pred,
+                      X.iloc[0].to_json(), _now()))
         conn.commit()
         return {"train_no": body.train_no, "station": body.station, "date": body.date,
                 "predicted_delay_min": round(pred, 1), "model_version": state["version"]}

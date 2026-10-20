@@ -1,5 +1,7 @@
+
 """SQLite storage for predictions, GPS pings and complaints."""
 import sqlite3
+from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS predictions (
@@ -16,7 +18,10 @@ CREATE INDEX IF NOT EXISTS ix_comp ON complaints(train_no, date);
 
 
 def connect(path):
-    conn = sqlite3.connect(path, check_same_thread=False)
+    db_path = Path(path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     return conn

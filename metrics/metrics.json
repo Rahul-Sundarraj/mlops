@@ -1,0 +1,7 @@
+{
+  "best_model": "lightgbm",
+  "registered_version": 1,
+  "baseline_mae": 8.813,
+  "xgboost_mae": 8.677,
+  "lightgbm_mae": 8.652
+}

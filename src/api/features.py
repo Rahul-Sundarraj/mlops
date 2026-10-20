@@ -1,5 +1,6 @@
 """Build a single-row feature frame for /predict from the route config."""
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
 
@@ -45,6 +46,11 @@ def build_row(cfg, hist, train_no, station, day, rain_mm=None):
     return pd.DataFrame([row])[CAT + NUM]
 
 
-def load_hist(path="data/processed/hist_avg.csv"):
+def load_hist(path=None):
+    if path is None:
+        path = Path(__file__).resolve().parents[2] / "data" / "processed" / "hist_avg.csv"
     df = pd.read_csv(path)
-    return {(int(r.train_no), r.station): float(r.hist_avg_delay) for r in df.itertuples()}
+    return {
+        (int(r.train_no), r.station): float(r.hist_avg_delay)
+        for r in df.itertuples()
+    }

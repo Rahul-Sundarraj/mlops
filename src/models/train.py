@@ -27,6 +27,20 @@ def make_pipeline(model):
     return Pipeline([("pre", pre), ("model", model)])
 
 
+def fit_candidates(fit_df, eval_df, params):
+    """Fit XGBoost and LightGBM on fit_df; return (name, pipeline, MAE) of the best on eval_df."""
+    best = None
+    for name, model in {
+        "xgboost": xgb.XGBRegressor(random_state=42, objective="reg:absoluteerror", **params["xgboost"]),
+        "lightgbm": lgb.LGBMRegressor(random_state=42, objective="mae", verbose=-1, **params["lightgbm"]),
+    }.items():
+        pipe = make_pipeline(model).fit(fit_df[CAT + NUM], fit_df[TARGET])
+        mae = mean_absolute_error(eval_df[TARGET], pipe.predict(eval_df[CAT + NUM]))
+        if best is None or mae < best[2]:
+            best = (name, pipe, mae)
+    return best
+
+
 def main():
     p = yaml.safe_load(open("params.yaml"))["train"]
     train = pd.read_csv("data/processed/train.csv")

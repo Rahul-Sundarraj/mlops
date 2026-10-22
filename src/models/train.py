@@ -75,11 +75,15 @@ def main():
             mlflow.log_param("features", ",".join(CAT + NUM))
             mlflow.sklearn.log_model(pipe, name="model", input_example=Xtr.head(3),
                                      serialization_format="cloudpickle")
-            results[name] = {"mae": mae, "run_id": run.info.run_id}
+            results[name] = {"mae": mae, "run_id": run.info.run_id, "pipe": pipe}
 
     best = min((k for k in results if k != "baseline"), key=lambda k: results[k]["mae"])
     mv = mlflow.register_model(f"runs:/{results[best]['run_id']}/model", p["registered_model"])
     MlflowClient().set_registered_model_alias(p["registered_model"], "production", mv.version)
+
+    from src.models.export import export_model, hist_from_csv
+    out = export_model(results[best]["pipe"], hist_from_csv(), mv.version, p["export_path"])
+    print(f"exported {best} v{mv.version} -> {out}")
 
     summary = {"best_model": best, "registered_version": int(mv.version),
                **{f"{k}_mae": round(v["mae"], 3) for k, v in results.items()}}

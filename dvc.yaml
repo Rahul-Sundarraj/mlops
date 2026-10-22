@@ -3,6 +3,7 @@ stages:
     cmd: python -m src.data.simulate --start ${simulate.start} --end ${simulate.end} --seed ${simulate.seed}
     deps:
       - src/data/simulate.py
+      - src/data/reference.py
       - configs/routes.yaml
     params:
       - simulate
@@ -21,6 +22,7 @@ stages:
     cmd: python -m src.models.train
     deps:
       - src/models/train.py
+      - src/models/export.py
       - src/features/build.py
       - data/processed
     params:
@@ -29,6 +31,8 @@ stages:
       - mlflow.db:
           cache: false
           persist: true
+      - models/production.json:
+          cache: false   # stays in git so the web app can be deployed from the repo
     metrics:
       - metrics/metrics.json:
           cache: false

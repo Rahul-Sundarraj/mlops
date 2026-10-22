@@ -58,7 +58,8 @@ def promote_decision(candidate_mae, champion_mae, min_gain):
     return candidate_mae < champion_mae - min_gain
 
 
-def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, history_path=HISTORY):
+def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, history_path=HISTORY,
+                        export_path=None):
     """Retrain on train_df + older new_df rows, compare with production on the newest holdout days."""
     cut = (date.fromisoformat(ref_date) - timedelta(days=orch_cfg["holdout_days"] - 1)).isoformat()
     holdout = new_df[new_df["date"] >= cut]
@@ -84,6 +85,10 @@ def retrain_and_promote(train_df, new_df, params, orch_cfg, reasons, ref_date, h
     promoted = promote_decision(cand_mae, champ_mae, orch_cfg["min_gain_min"])
     if promoted:
         client.set_registered_model_alias(name, "production", mv.version)
+        if export_path:  # refresh the dependency-free file the web app serves; keep its historical-average table
+            from src.models.export import export_model
+            old = json.loads(Path(export_path).read_text(encoding="utf-8"))
+            export_model(pipe, old["hist"], mv.version, export_path)
     client.set_model_version_tag(name, mv.version, "promoted", str(promoted).lower())
 
     record = {"ref_date": ref_date, "reasons": reasons, "candidate_model": best,
@@ -107,7 +112,7 @@ def log_signals(sig, out, ref_date, path):
 
 
 def run_cycle(conn, params, thresholds, train_df, reference, live_features, new_df, ref_date,
-              history_path=HISTORY, signals_log=None):
+              history_path=HISTORY, signals_log=None, export_path=None):
     """One orchestrator tick: evaluate signals, respect cooldown, retrain if triggered."""
     history = read_history(history_path)
     sig = evaluate_signals(conn, thresholds, reference, live_features, ref_date, last_retrain_date(history))
@@ -118,7 +123,7 @@ def run_cycle(conn, params, thresholds, train_df, reference, live_features, new_
         out["skipped"] = "cooldown"
     else:
         out["record"] = retrain_and_promote(train_df, new_df, params, thresholds["orchestrator"],
-                                            sig["triggers"], ref_date, history_path)
+                                            sig["triggers"], ref_date, history_path, export_path)
         out["retrained"] = True
     if signals_log:
         log_signals(sig, out, ref_date, signals_log)

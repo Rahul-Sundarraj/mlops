@@ -5,12 +5,12 @@ import mlflow.sklearn
 import pytest
 from mlflow.tracking import MlflowClient
 
-from src.api import storage
 from src.data.simulate import load_config, simulate_delays
 from src.features.build import add_features, attach_hist, hist_avg_table
 from src.models.train import fit_candidates
 from src.monitoring.drift import detect_drift
 from src.orchestrator import run as orch
+from src.web import storage
 
 TINY = {"xgboost": {"n_estimators": 20, "max_depth": 3, "learning_rate": 0.2},
         "lightgbm": {"n_estimators": 20, "num_leaves": 7, "learning_rate": 0.2},

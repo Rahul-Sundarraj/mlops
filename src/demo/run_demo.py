@@ -17,16 +17,16 @@ import mlflow
 import mlflow.sklearn
 import numpy as np
 import pandas as pd
-from fastapi.testclient import TestClient
 from mlflow.tracking import MlflowClient
 
-from src.api import storage
-from src.api.app import create_app
 from src.features.build import FEATURES, TARGET
+from src.models.export import export_model, hist_from_csv
 from src.models.train import fit_candidates
 from src.monitoring import drift as drift_mod
 from src.monitoring import signals
 from src.orchestrator import run as orch
+from src.web import storage
+from src.web.app import create_app
 
 DEMO_ROOT = Path("data/demo")
 NORMAL_DAYS, EVENT_DAYS, SAMPLE_PER_DAY = 7, 14, 250
@@ -44,6 +44,7 @@ def bootstrap_champion(train, test, params, demo_dir):
         info = mlflow.sklearn.log_model(pipe, name="model", serialization_format="cloudpickle")
     mv = mlflow.register_model(info.model_uri, params["registered_model"])
     MlflowClient().set_registered_model_alias(params["registered_model"], "production", mv.version)
+    export_model(pipe, hist_from_csv(), mv.version, demo_dir / "production.json")
     print(f"champion: {name} v{mv.version}, MAE on first week {mae:.2f}")
     return params
 
@@ -73,9 +74,7 @@ def run(scenario, seed=7):
     champ = mlflow.sklearn.load_model(f"models:/{params['registered_model']}@production")
     first_week = test[test.date <= sorted(test.date.unique())[NORMAL_DAYS - 1]]
     th["rolling_error"]["baseline"] = signals.per_train_mae(champ, first_week)
-    hist = {(int(r.train_no), r.station): float(r.hist_avg_delay)
-            for r in train.drop_duplicates(["train_no", "station"]).itertuples()}
-    client = TestClient(create_app(None, "demo", str(demo_dir / "api.db"), hist=hist, thresholds=th))
+    client = create_app(str(demo_dir / "production.json"), str(demo_dir / "api.db"), th).test_client()
     conn = storage.connect(str(demo_dir / "api.db"))  # second connection for monitor reads
 
     days = sorted(test.date.unique())[:NORMAL_DAYS + EVENT_DAYS]
@@ -102,7 +101,7 @@ def run(scenario, seed=7):
         since = orch.last_retrain_date(orch.read_history(history_path))
         live = drift_mod.recent_features(conn, day, th["drift"]["window_days"], since)
         out = orch.run_cycle(conn, params, th, train, reference, live, pd.concat(new_rows), day,
-                             history_path, log_path)
+                             history_path, log_path, demo_dir / "production.json")
         sig = out["signals"]
         action = out.get("skipped", "")
         if out["retrained"]:

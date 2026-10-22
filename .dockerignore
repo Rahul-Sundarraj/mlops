@@ -1,7 +1,14 @@
-.git
-.dvc/cache
-data/
+
+.git/
+.dvc/cache/
+.venv/
+venv/
+data/raw/
+data/external/
 mlruns/
 mlflow.db
+db/
 __pycache__/
 .pytest_cache/
+*.py[cod]
+.env

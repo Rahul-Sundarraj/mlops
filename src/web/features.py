@@ -1,5 +1,6 @@
 """Dependency-free feature building for one (train, station, date); mirrors src/features/build.py."""
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from src.data.reference import RAIN_MEAN, festival_dates
 
@@ -41,3 +42,17 @@ def build_row(cfg, model, train_no, station, day, rain_mm=None):
         "hist_avg_delay": model.hist_avg(train_no, station), "route_len_km": t["stops"][-1][1],
         "train_no": train_no, "station": station, "category": t["category"], "region": region,
     }
+<<<<<<< HEAD:src/web/features.py
+=======
+    return pd.DataFrame([row])[CAT + NUM]
+
+
+def load_hist(path=None):
+    if path is None:
+        path = Path(__file__).resolve().parents[2] / "data" / "processed" / "hist_avg.csv"
+    df = pd.read_csv(path)
+    return {
+        (int(r.train_no), r.station): float(r.hist_avg_delay)
+        for r in df.itertuples()
+    }
+>>>>>>> 08e789a48bfcdecfdfbc027f7857197f9332682e:src/api/features.py

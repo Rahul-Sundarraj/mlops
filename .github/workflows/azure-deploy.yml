@@ -1,0 +1,43 @@
+name: Build and Push Railway API Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "Dockerfile"
+      - "requirements.txt"
+      - "src/**"
+      - "configs/**"
+      - "params.yaml"
+      - ".dockerignore"
+      - ".github/workflows/azure-deploy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name railwaydelayacr20261020
+
+      - name: Build and push image
+        run: |
+          docker build \
+            --tag railwaydelayacr20261020.azurecr.io/railway-delay-api:${{ github.sha }} \
+            --tag railwaydelayacr20261020.azurecr.io/railway-delay-api:latest \
+            .
+          docker push railwaydelayacr20261020.azurecr.io/railway-delay-api:${{ github.sha }}
+          docker push railwaydelayacr20261020.azurecr.io/railway-delay-api:latest

@@ -1,54 +1,45 @@
-# One image, several roles. Shared named volumes keep data, the MLflow registry and artifacts consistent.
-#   docker compose up --build            -> pipeline (simulate+features+train), then api :8000, passenger app :8502, mlflow :5000
-#   docker compose --profile demo up demo dashboard   -> replay the incident demo, dashboard on :8501
-x-app: &app
-  build: .
+# Two images: `web` (light Flask app) and `ml` (training, MLflow, demo). Named volumes share data and the exported model.
+#   docker compose up --build                  -> trains + exports the model, then web on :8000 (passenger page at /, monitor at /ops)
+#   docker compose --profile demo up demo      -> replay the incident demo; open :8000/ops to see it
+x-ml: &ml
+  build: {context: ., dockerfile: Dockerfile.pipeline}
   volumes:
     - data:/app/data
     - db:/app/db
     - mlruns:/app/mlruns
+    - models:/app/models
 
 services:
   pipeline:
-    <<: *app
+    <<: *ml
     command: sh -c "mkdir -p /app/db && python -m src.data.simulate && python -m src.features.build && python -m src.models.train"
     restart: "no"
 
+  web:
+    build: .
+    ports: ["8000:8000"]
+    volumes:
+      - data:/app/data
+      - models:/app/models
+    depends_on:
+      pipeline: {condition: service_completed_successfully}
+
   mlflow:
-    <<: *app
+    <<: *ml
     command: mlflow server --backend-store-uri sqlite:////app/db/mlflow.db --host 0.0.0.0 --port 5000
     ports: ["5000:5000"]
     depends_on:
       pipeline: {condition: service_completed_successfully}
 
-  api:
-    <<: *app
-    ports: ["8000:8000"]
-    depends_on:
-      pipeline: {condition: service_completed_successfully}
-
-  passenger:
-    <<: *app
-    command: streamlit run src/passenger/app.py --server.address 0.0.0.0 --server.port 8502
-    environment:
-      API_URL: http://api:8000
-    ports: ["8502:8502"]
-    depends_on: [api]
-
   demo:
-    <<: *app
+    <<: *ml
     profiles: [demo]
     command: python -m src.demo.run_demo --scenario all
     depends_on:
       pipeline: {condition: service_completed_successfully}
 
-  dashboard:
-    <<: *app
-    profiles: [demo]
-    command: streamlit run src/dashboard/app.py --server.address 0.0.0.0 --server.port 8501
-    ports: ["8501:8501"]
-
 volumes:
   data:
   db:
   mlruns:
+  models:

@@ -1,9 +1,9 @@
+# Lightweight web image: Flask app + the exported model file only (no ML libraries).
 FROM python:3.12-slim
 WORKDIR /app
-# LightGBM needs the OpenMP runtime
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-ENV PYTHONUNBUFFERED=1 MLFLOW_URI=sqlite:////app/db/mlflow.db RAILWAY_DB=/app/data/api.db
-CMD ["uvicorn", "src.api.app:get_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+ENV PYTHONUNBUFFERED=1 RAILWAY_DB=/app/data/api.db
+EXPOSE 8000
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8000} --workers 1 --threads 4 --timeout 120 wsgi:app"]

@@ -1,0 +1,11 @@
+# Full MLOps stack (training, tracking, drift, orchestration, tests). The deployed web app needs only requirements.txt.
+-r requirements.txt
+dvc==3.67.1
+evidently==0.7.23
+lightgbm==4.7.0
+mlflow==3.16.1
+numpy==2.3.2
+pandas==2.3.2
+pytest==9.1.1
+scikit-learn==1.7.1
+xgboost==3.4.1

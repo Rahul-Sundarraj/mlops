@@ -62,21 +62,63 @@ After `dvc repro`, commit the refreshed `models/production.json` if you want to 
 
 ## Deploy to Azure App Service (free F1 tier)
 
-One app now replaces the old separate backend and frontend, so it uses a single slot of the free quota. Steps (Linux, Python 3.12):
+The app is a single Flask process with a 22 MB dependency set, so it fits the F1 plan as **one** web app. It replaces the separate backend and frontend you
+deployed before, so use the one app for both (see "Free-tier quota" below if you hit the quota error).
+
+### Before you start
+- An Azure subscription and the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az login` works).
+- The repo checked out with `models/production.json` committed (it is, at the time of writing). If you retrained, run `dvc repro` and commit the new file first.
+- Pick a globally unique app name; it becomes `https://<app-name>.azurewebsites.net`.
+
+### Step by step (Azure CLI)
+Run from the repo root. Commands are single-line so they work in Bash, PowerShell and cmd; replace the `<...>` values.
 
 ```bash
-az webapp up --name <app-name> --resource-group <rg> --runtime "PYTHON:3.12" --sku F1
-az webapp config set --name <app-name> --resource-group <rg> \
-  --startup-file "gunicorn --bind=0.0.0.0 --timeout 120 --workers 1 --threads 4 wsgi:app"
-az webapp config appsettings set --name <app-name> --resource-group <rg> \
-  --settings RAILWAY_DB=/home/api.db SCM_DO_BUILD_DURING_DEPLOYMENT=true
+# 1. sign in and create a resource group + a free Linux plan
+az login
+az group create --name rg-railway --location centralindia
+az appservice plan create --name plan-railway --resource-group rg-railway --sku F1 --is-linux
+
+# 2. create the web app (Python 3.12 runtime)
+az webapp create --name <app-name> --resource-group rg-railway --plan plan-railway --runtime "PYTHON:3.12"
+
+# 3. settings: build dependencies on deploy, keep the SQLite file on the persistent /home volume
+az webapp config appsettings set --name <app-name> --resource-group rg-railway --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true RAILWAY_DB=/home/api.db
+
+# 4. tell Azure how to start the app
+az webapp config set --name <app-name> --resource-group rg-railway --startup-file "gunicorn --bind=0.0.0.0 --timeout 120 --workers 1 --threads 4 wsgi:app"
+
+# 5. package the committed files only (no data/, mlruns/ or local databases) and deploy
+git archive --format=zip -o deploy.zip HEAD
+az webapp deploy --name <app-name> --resource-group rg-railway --src-path deploy.zip --type zip
 ```
 
-Notes:
-- Deploy from the repo root so `models/production.json`, `configs/` and `wsgi.py` are included. Heavy folders (`mlruns/`, `mlflow.db`, `data/demo/`) are git-ignored.
-- `RAILWAY_DB=/home/api.db` keeps pings and complaints on Azure's persistent `/home` volume. The free tier has small CPU and disk quotas, which is why the deployed app avoids the ML libraries.
-- `/ops` will show "No demo data" on Azure unless you also upload a `data/demo/<scenario>/` folder; it is meant for the local demo.
-- These Azure commands are untested here (no Azure access); adjust names and flags to your subscription.
+Then open `https://<app-name>.azurewebsites.net/` (passenger page) and `https://<app-name>.azurewebsites.net/health`.
+A healthy response looks like `{"status": "ok", ...}`. The first request after a deploy or idle period can take 20-60 seconds on F1 while the app starts.
+
+To redeploy after changes: commit, then repeat step 5 (`git archive` only packs what is committed).
+
+### Deploying through the Azure portal instead
+Create a Web App (Publish: Code, Runtime stack: Python 3.12, OS: Linux, Pricing plan: Free F1). Under **Settings > Environment variables** add `SCM_DO_BUILD_DURING_DEPLOYMENT=true`
+and `RAILWAY_DB=/home/api.db`. Under **Settings > Configuration > Stack settings** set the startup command to
+`gunicorn --bind=0.0.0.0 --timeout 120 --workers 1 --threads 4 wsgi:app`. Then deploy with **Deployment Center** (GitHub) or by running step 5 above.
+
+### Free-tier quota ("quota exceeded")
+- The F1 plan gives a small daily CPU allowance (about 60 CPU-minutes per day) that is **shared by every app on the plan**, plus 1 GB of RAM and disk. A separate frontend app consumes that same allowance.
+- Run only this one app on the plan: delete the old backend/frontend apps (`az webapp delete --name <old-app> --resource-group <rg>`) or deploy into the existing backend app and change its startup command (step 4).
+- Keep `--workers 1`. Do not enable Always On (not available on F1); the app sleeps when idle and wakes on the next request.
+- When the allowance is used up, Azure stops the app until the quota resets, so avoid load tests against the free plan.
+
+### Troubleshooting
+| Symptom | Fix |
+|---|---|
+| "Application Error" / site does not start | `az webapp log tail --name <app-name> --resource-group rg-railway`; check the startup command (step 4) is exactly as shown |
+| `/health` shows `"status": "no-model"` or `/predict` returns 503 | `models/production.json` was not in the deployed zip; commit it and redeploy |
+| Pings or complaints vanish after a restart | `RAILWAY_DB` is not set to `/home/api.db` (step 3) |
+| Deploy is very large or slow | you zipped the working folder; use `git archive` as in step 5 |
+| `/ops` says "No demo data" | expected on Azure; it reads `data/demo/` from the local demo run |
+
+These steps follow Azure's documented CLI workflow but have not been run end to end on a real subscription by the author, so adjust names, region and flags to your account.
 
 ## Docker
 

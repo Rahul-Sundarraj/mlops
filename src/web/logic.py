@@ -1,4 +1,4 @@
-"""Pure helpers for the passenger view (no Streamlit, no network)."""
+"""Pure helpers for the passenger view."""
 
 STATION_NAMES = {
     "MAS": "Chennai Central", "MS": "Chennai Egmore", "PER": "Perambur", "AJJ": "Arakkonam", "TRL": "Tiruvallur",

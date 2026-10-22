@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model monitor</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --ink:#1c2530; --muted:#5d6b7a; --line:#dde3ea; --accent:#0b5cad; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#11161c; --card:#1a222b; --ink:#e8edf2; --muted:#9aa8b6; --line:#2b3643; --accent:#4a9be8; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:14px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .kpi b { display:block; font-size:1.6rem; } .kpi span { color:var(--muted); font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; } th,td { text-align:left; padding:6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; } .scroll { overflow-x:auto; }
+  svg { width:100%; max-width:240px; height:46px; } polyline { fill:none; stroke:var(--accent); stroke-width:2; }
+  .sparks { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; } .muted { color:var(--muted); }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Model monitor</h1>
+  <p class="muted"><a href="/">Passenger page</a></p>
+  {% if not chosen %}
+    <div class="card">No demo data found. Run <code>python -m src.demo.run_demo</code> and set <code>OPS_DIR</code> if it writes elsewhere.</div>
+  {% else %}
+  <form method="get" class="card">Scenario
+    <select name="scenario" onchange="this.form.submit()">
+      {% for s in scenarios %}<option value="{{ s }}" {{ 'selected' if s == chosen }}>{{ s }}</option>{% endfor %}
+    </select>
+  </form>
+  <div class="card kpis">
+    <div class="kpi"><b>{{ data.model_version or 'n/a' }}</b><span>Production model version</span></div>
+    <div class="kpi"><b>{{ data.history|length }}</b><span>Retrains</span></div>
+    <div class="kpi"><b>{{ data.promotions }}</b><span>Promotions</span></div>
+    <div class="kpi"><b>{{ data.signals[-1].drift_share if data.signals else 'n/a' }}</b><span>Latest drift share</span></div>
+  </div>
+  <div class="card sparks">
+    {% for key, title in [('max_error_mae', 'Worst route rolling MAE (min)'), ('drift_share', 'Drift share'), ('max_complaints', 'Max complaints per route')] %}
+      <div><div class="muted">{{ title }}</div>
+      <svg viewBox="0 0 220 46" role="img" aria-label="{{ title }}"><polyline points="{{ data.spark[key] }}"/></svg></div>
+    {% endfor %}
+  </div>
+  <div class="card scroll"><strong>Retraining history</strong>
+    {% if data.history %}
+    <table><thead><tr><th>Date</th><th>Triggers</th><th>Model</th><th>Candidate MAE</th><th>Champion MAE</th><th>Promoted</th></tr></thead><tbody>
+      {% for h in data.history %}<tr><td>{{ h.ref_date }}</td><td>{{ h.reasons|join(', ') }}</td><td>{{ h.candidate_model }} v{{ h.candidate_version }}</td>
+        <td>{{ h.candidate_holdout_mae }}</td><td>{{ h.champion_holdout_mae }}</td><td>{{ 'yes' if h.promoted else 'no' }}</td></tr>{% endfor %}
+    </tbody></table>
+    {% else %}<p class="muted">No retrains yet.</p>{% endif %}
+  </div>
+  <div class="card scroll"><strong>Complaints by train (current window)</strong>
+    {% if data.complaints %}<table><thead><tr><th>Train</th><th>Complaints</th></tr></thead><tbody>
+      {% for t, n in data.complaints.items() %}<tr><td>{{ t }}</td><td>{{ n }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<p class="muted">None logged.</p>{% endif %}
+  </div>
+  {% endif %}
+</main>
+</body>
+</html>

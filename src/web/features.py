@@ -1,10 +1,7 @@
-"""Build a single-row feature frame for /predict from the route config."""
+"""Dependency-free feature building for one (train, station, date); mirrors src/features/build.py."""
 from datetime import datetime, timedelta
 
-import pandas as pd
-
-from src.data.simulate import RAIN_MEAN, festival_dates
-from src.features.build import CAT, NUM
+from src.data.reference import RAIN_MEAN, festival_dates
 
 _FEST = festival_dates()
 
@@ -21,7 +18,12 @@ def scheduled_arrival(cfg, train_no, station, day):
     return datetime.combine(day, datetime.min.time()) + timedelta(hours=hh, minutes=mm + km / t["speed"] * 60)
 
 
-def build_row(cfg, hist, train_no, station, day, rain_mm=None):
+def region_of(cfg, station):
+    return next(r for r, sts in cfg["regions"].items() if station in sts)
+
+
+def build_row(cfg, model, train_no, station, day, rain_mm=None):
+    """Feature dict (all categorical and numeric columns) for the model."""
     t = cfg["trains"].get(train_no)
     if t is None:
         raise UnknownRoute(f"unknown train {train_no}")
@@ -29,22 +31,13 @@ def build_row(cfg, hist, train_no, station, day, rain_mm=None):
     if station not in stops:
         raise UnknownRoute(f"train {train_no} does not stop at {station}")
     seq, km = stops[station]
-    region = next(r for r, sts in cfg["regions"].items() if station in sts)
+    region = region_of(cfg, station)
     sched = scheduled_arrival(cfg, train_no, station, day)
     if rain_mm is None:
         rain_mm = RAIN_MEAN[region][day.month - 1]
-    h = hist.get((train_no, station))
-    if h is None:
-        h = sum(hist.values()) / len(hist)
-    row = {
+    return {
         "distance_km": km, "stop_seq": seq, "month": day.month, "day_of_week": day.weekday(),
         "is_festival": int(day in _FEST), "rain_mm": rain_mm, "sched_hour": sched.hour,
-        "hist_avg_delay": h, "route_len_km": t["stops"][-1][1],
+        "hist_avg_delay": model.hist_avg(train_no, station), "route_len_km": t["stops"][-1][1],
         "train_no": train_no, "station": station, "category": t["category"], "region": region,
     }
-    return pd.DataFrame([row])[CAT + NUM]
-
-
-def load_hist(path="data/processed/hist_avg.csv"):
-    df = pd.read_csv(path)
-    return {(int(r.train_no), r.station): float(r.hist_avg_delay) for r in df.itertuples()}

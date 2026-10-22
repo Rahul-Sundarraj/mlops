@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Will my train be late?</title>
+<style>
+  :root {
+    --bg: #f4f6f8; --card: #ffffff; --ink: #1c2530; --muted: #5d6b7a; --line: #dde3ea;
+    --accent: #0b5cad; --accent-ink: #ffffff; --green: #1a7f4b; --orange: #b4630a; --red: #c0352b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161c; --card: #1a222b; --ink: #e8edf2; --muted: #9aa8b6; --line: #2b3643;
+            --accent: #4a9be8; --accent-ink: #0b141d; --green: #4cc38a; --orange: #f0a04b; --red: #f0766d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid .wide { grid-column: 1 / -1; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+  select, input, textarea { width: 100%; padding: 10px; font: inherit; color: var(--ink); background: var(--bg);
+                            border: 1px solid var(--line); border-radius: 8px; }
+  button { font: inherit; padding: 11px 16px; border: 0; border-radius: 8px; background: var(--accent);
+           color: var(--accent-ink); cursor: pointer; width: 100%; font-weight: 600; }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); width: auto; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .headline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+  .big { font-size: 2.6rem; font-weight: 700; line-height: 1.1; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600;
+          border: 1px solid currentColor; }
+  .green { color: var(--green); } .orange { color: var(--orange); } .red { color: var(--red); }
+  .facts { display: flex; gap: 24px; margin-top: 10px; color: var(--muted); }
+  .facts b { display: block; color: var(--ink); font-size: 1.15rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  tr.me td { font-weight: 700; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  details { margin-bottom: 14px; } summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+  .msg { margin-top: 8px; font-size: .92rem; } .ok { color: var(--green); } .err { color: var(--red); }
+  svg.chart { width: 100%; height: 150px; display: block; margin-top: 8px; }
+  footer { color: var(--muted); font-size: .8rem; text-align: center; padding: 12px 0 24px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } .big { font-size: 2.2rem; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Will my train be late?</h1>
+  <p class="sub">Expected delay for 16 Southern Railway trains, from a model that retrains itself as conditions change.</p>
+
+  <section class="card">
+    <div class="grid">
+      <div class="wide"><label for="train">Train</label><select id="train"></select></div>
+      <div><label for="date">Travel date</label><input id="date" type="date"></div>
+      <div><label for="weather">Weather</label>
+        <select id="weather">
+          <option value="">Normal</option><option value="15">Rainy</option><option value="40">Heavy rain</option>
+        </select></div>
+      <div class="wide"><label for="station">Your station</label><select id="station"></select></div>
+      <div class="wide"><button id="check">Check delay</button></div>
+    </div>
+    <div id="error" class="msg err" hidden></div>
+  </section>
+
+  <section id="result" hidden>
+    <div class="card">
+      <div id="where" style="font-weight:600"></div>
+      <div class="headline"><span class="big" id="delay"></span><span class="chip" id="status"></span></div>
+      <div class="facts">
+        <div>Scheduled<b id="sched"></b></div><div>Expected arrival<b id="expected"></b></div>
+      </div>
+    </div>
+    <div class="card">
+      <strong>Along the route</strong>
+      <svg id="chart" class="chart" role="img" aria-label="Expected delay by station"></svg>
+      <div class="scroll"><table>
+        <thead><tr><th>Station</th><th class="num">Scheduled</th><th class="num">Delay</th><th class="num">Expected</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </div>
+    <details class="card"><summary>I'm on this train: report my delay</summary>
+      <label for="actual">Minutes late right now</label>
+      <input id="actual" type="number" min="0" max="600" value="0">
+      <p><button id="ping" class="secondary">Send my delay report</button></p>
+      <div id="pingMsg" class="msg"></div>
+    </details>
+    <details class="card"><summary>File a complaint about this train</summary>
+      <label for="complaint">What went wrong?</label>
+      <textarea id="complaint" rows="3" maxlength="1000"></textarea>
+      <p><button id="complain" class="secondary">Submit complaint</button></p>
+      <div id="complainMsg" class="msg"></div>
+    </details>
+  </section>
+  <footer>Forecasts come from a model trained on simulated data. Not an official railway service.</footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let TRAINS = [], last = null;
+
+async function post(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("Request failed (" + r.status + ")"));
+  return data;
+}
+function setMsg(el, text, cls) { el.textContent = text; el.className = "msg " + (cls || ""); }
+function fillStations() {
+  const t = TRAINS.find((x) => String(x.train_no) === $("train").value);
+  const sel = $("station"); sel.replaceChildren();
+  t.stops.slice(1).forEach((s) => sel.add(new Option(s.name + " (" + s.code + ")", s.code)));
+  sel.selectedIndex = sel.options.length - 1;
+}
+async function init() {
+  $("date").value = new Date().toISOString().slice(0, 10);
+  try {
+    TRAINS = await (await fetch("/api/trains")).json();
+  } catch (e) { setMsg($("error"), "Could not load trains.", "err"); $("error").hidden = false; return; }
+  TRAINS.forEach((t) => $("train").add(new Option(t.train_no + " · " + t.name, t.train_no)));
+  fillStations();
+}
+function chart(stops) {
+  const svg = $("chart"), NS = "http://www.w3.org/2000/svg", W = 600, H = 150, pad = 18;
+  svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.replaceChildren();
+  const max = Math.max(5, ...stops.map((s) => s.delay_min)), n = stops.length, bw = (W - 2 * pad) / n;
+  stops.forEach((s, i) => {
+    const h = (s.delay_min / max) * (H - 2 * pad), r = document.createElementNS(NS, "rect");
+    r.setAttribute("x", pad + i * bw + 2); r.setAttribute("y", H - pad - h);
+    r.setAttribute("width", Math.max(2, bw - 4)); r.setAttribute("height", Math.max(1, h)); r.setAttribute("rx", 2);
+    r.setAttribute("fill", "currentColor"); r.setAttribute("class", s.colour);
+    const tip = document.createElementNS(NS, "title"); tip.textContent = s.name + ": " + s.delay_text; r.appendChild(tip);
+    svg.appendChild(r);
+  });
+}
+function render(data, station) {
+  last = {train_no: data.train_no, date: data.date, station};
+  const me = data.stops.find((s) => s.station === station);
+  $("where").textContent = me.name + " (" + me.station + ")";
+  $("delay").textContent = me.delay_text;
+  const chip = $("status"); chip.textContent = me.status; chip.className = "chip " + me.colour;
+  $("delay").className = "big " + me.colour;
+  $("sched").textContent = me.scheduled; $("expected").textContent = me.expected;
+  const body = $("rows"); body.replaceChildren();
+  data.stops.forEach((s) => {
+    const tr = body.insertRow(); if (s.station === station) tr.className = "me";
+    tr.insertCell().textContent = s.name;
+    [s.scheduled, s.delay_text, s.expected].forEach((v) => { const c = tr.insertCell(); c.className = "num"; c.textContent = v; });
+  });
+  chart(data.stops);
+  $("result").hidden = false;
+}
+async function check() {
+  const btn = $("check"); btn.disabled = true; $("error").hidden = true;
+  try {
+    const body = {train_no: Number($("train").value), date: $("date").value};
+    if ($("weather").value) body.rain_mm = Number($("weather").value);
+    render(await post("/predict-route", body), $("station").value);
+  } catch (e) { setMsg($("error"), e.message, "err"); $("error").hidden = false; $("result").hidden = true; }
+  btn.disabled = false;
+}
+async function ping() {
+  try {
+    const r = await post("/location-ping", {train_no: last.train_no, station: last.station, date: last.date,
+      actual_delay_min: Number($("actual").value)});
+    setMsg($("pingMsg"), "Thanks, your report helps keep the forecast accurate." +
+      (r.abs_error_min == null ? "" : " (The forecast was off by " + Math.round(r.abs_error_min) + " min.)"), "ok");
+  } catch (e) { setMsg($("pingMsg"), e.message, "err"); }
+}
+async function complain() {
+  const text = $("complaint").value.trim();
+  if (!text) { setMsg($("complainMsg"), "Please describe the problem first.", "err"); return; }
+  try {
+    await post("/complain", {train_no: last.train_no, date: last.date, text});
+    setMsg($("complainMsg"), "Complaint recorded.", "ok"); $("complaint").value = "";
+  } catch (e) { setMsg($("complainMsg"), e.message, "err"); }
+}
+$("train").addEventListener("change", fillStations);
+$("check").addEventListener("click", check);
+$("ping").addEventListener("click", ping);
+$("complain").addEventListener("click", complain);
+init();
+</script>
+</body>
+</html>

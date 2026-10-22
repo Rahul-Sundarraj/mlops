@@ -1,6 +1,0 @@
-[client]
-# Hide the Deploy button and developer menu; viewers only see the app.
-toolbarMode = "viewer"
-
-[browser]
-gatherUsageStats = false

@@ -2,9 +2,9 @@
 
 ## 1. What was built
 An end-to-end, locally runnable MLOps pipeline for 16 South Indian trains (see `configs/routes.yaml`):
-simulated delay data -> DVC pipeline -> MLflow tracking/registry -> FastAPI serving with GPS-ping and complaint feedback ->
-rolling-error, complaint and Evidently drift signals -> OR-trigger retraining with gated registry promotion -> Streamlit dashboard,
-packaged with Docker Compose and GitHub Actions. Phase-by-phase commits are in the git log.
+simulated delay data -> DVC pipeline -> MLflow tracking/registry -> a single Flask app (passenger page, JSON API with GPS-ping and complaint feedback, monitor page) serving a model exported to plain JSON ->
+rolling-error, complaint and Evidently drift signals -> OR-trigger retraining with gated registry promotion -> operator monitor page,
+packaged with Docker Compose and GitHub Actions. The serving app is deliberately light (Flask + PyYAML only) to fit Azure's free tier. Phase-by-phase commits are in the git log.
 
 ## 2. Data and its limits
 No public per-station historical delay archive exists, so delays are simulated (`src/data/simulate.py`): delays accumulate along a route with partial
